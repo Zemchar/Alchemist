@@ -1,4 +1,4 @@
-# The Alchemist
+# The Alchemist 
 *Don't practice alchemy without a friend!*
 
 # The Goal
@@ -38,6 +38,7 @@ The full release will have:
 
 # The People
 This project was made almost entirely by [https://github.com/Zemchar/](Juniper Mixon), with setup help from the SubstanceSync team. The project was archived, so this project is now considered independednt. 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/G2G71OVV71)
 
 # The Cost
 *** Alchemist will be Free. Forever*** 
