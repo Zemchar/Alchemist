@@ -37,7 +37,8 @@ The full release will have:
 * User Suggested Features!
 
 # The People
-This project was made almost entirely by [https://github.com/Zemchar/](Juniper Mixon), with setup help from the SubstanceSync team. The project was archived, so this project is now considered independednt. 
+This project was made almost entirely by [https://github.com/Zemchar/](Juniper Mixon), with setup help from the SubstanceSync team. The project was archived, so this project is now considered independent. 
+
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/G2G71OVV71)
 
 # The Cost
