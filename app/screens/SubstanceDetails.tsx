@@ -1,10 +1,24 @@
 import React from 'react';
-import {FlatList, Linking, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {
+    Dimensions,
+    FlatList,
+    Linking,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
+} from 'react-native';
 import {Colors} from '@/constants/Colors';
 import {useColorScheme} from '@/hooks/useColorScheme';
 import {IconSymbol} from "@/components/ui/IconSymbol";
 import {useNavigation, useRoute} from "@react-navigation/native";
 import {Card} from "@rneui/themed";
+import {AreaChart} from "@/components/AreaChart";
+
+const cardWidth = Dimensions.get('window').width - 20
+
 
 const SubstanceDetails = () => {
     const route = useRoute();
@@ -31,8 +45,11 @@ const SubstanceDetails = () => {
             </SafeAreaView>
         );
     } else {
+        // @ts-ignore
+        // @ts-ignore
         return (
             <SafeAreaView style={[styles.container, {backgroundColor: Colors[colorScheme ?? 'light'].background}]}>
+                {/* Header */}
                 <View style={[styles.header, {borderColor: Colors[colorScheme ?? 'light'].border}]}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
                         <IconSymbol name="chevron.left" size={28} color={Colors[colorScheme ?? 'light'].text}/>
@@ -41,31 +58,56 @@ const SubstanceDetails = () => {
                         {substance.pretty_name || substance.name}
                     </Text>
                 </View>
-                <ScrollView style={styles.scrollView}>
+
+                {/* Substance Information
+                I am aware using scrollview is not recommended when nested in a safe area/another scrollview, but it works fine for now.
+                TODO: Revisit this and remove nested scrollview if causing issues*/}
+                <ScrollView style={styles.scrollView} horizontal={true} nestedScrollEnabled={true} pagingEnabled={true}>
+                    <View>
 
                     <Card containerStyle={[styles.card, {backgroundColor: Colors[colorScheme ?? 'light'].background}]}>
                         <Text
                             style={[styles.cardTitle, {color: Colors[colorScheme ?? 'light'].text}]}>Information</Text>
                         <Text
                             style={[styles.cardText, {color: Colors[colorScheme ?? 'light'].text}]}>{substance.properties?.summary}</Text>
-                        {substance.properties?.warnings?.map((warning, index) => (
-                            <Text key={index} style={[styles.cardText, {color: 'red'}]}>{warning}</Text>
-                        ))}
                     </Card>
 
-                    {/*Dose card*/}
-                    <Card containerStyle={[styles.card, {backgroundColor: Colors[colorScheme ?? 'light'].background}]}>
-                        <Text style={[styles.cardTitle, {color: Colors[colorScheme ?? 'light'].text}]}>Dosage &
-                            Timing</Text>
-                        {substance.dosage?.routes && Object.entries(substance.dosage.routes).map(([route, info]) => (
-                            <View key={route}>
-                                <Text style={[styles.cardText, {color: Colors[colorScheme ?? 'light'].text}]}>
-                                    {route.toUpperCase()}:
-                                    {info.common && ` Common: ${info.common.min}-${info.common.max} ${info.units}`}
-                                </Text>
-                            </View>
-                        ))}
-                    </Card>
+                        {/*Dose card*/}
+                        <Card
+                            containerStyle={[styles.card, {backgroundColor: Colors[colorScheme ?? 'light'].background}]}>
+                            <Text style={[styles.cardTitle, {color: Colors[colorScheme ?? 'light'].text}]}>Dosage &
+                                Timing</Text>
+                            <AreaChart
+                                data={[
+                                    [
+                                        {value: 1, label: '0h'},
+                                        {value: 2, label: '1h'},
+                                        {value: 3, label: '2h'},
+                                        {value: 4, label: '3h'},
+                                        {value: 2, label: '4h'},
+                                        {value: 1, label: '5h'}
+                                    ]
+                                ]}
+                                lineColor={["#a8ffae"]}
+                                hideDots={true}
+
+                                height={200}
+                            />
+
+                            {substance.dosage?.routes && Object.entries(substance.dosage.routes).map(([route, info]) => (
+                                <View key={route}>
+                                    <Text style={[styles.cardText, {color: Colors[colorScheme ?? 'light'].text}]}>
+                                        {route.toUpperCase()}:
+                                        //@ts-ignore
+                                        {info.common && ` Common: ${info.common.min}-${info.common.max} ${info.units}`}
+                                    </Text>
+                                </View>
+                            ))}
+
+                        </Card>
+                    </View>
+
+
                     {/*Interactions*/}
                     <Card containerStyle={[styles.card, {backgroundColor: Colors[colorScheme ?? 'light'].background}]}>
                         <FlatList
@@ -120,6 +162,15 @@ const SubstanceDetails = () => {
                                     style={[styles.cardTitle, {color: Colors[colorScheme ?? 'light'].text}]}>Interactions</Text>
                             }
                         />
+                        {substance.properties?.avoid != "" &&
+                            <View style={{paddingVertical: 10}}>
+                                <Text style={[styles.cardText, {
+                                    color: Colors[colorScheme ?? 'light'].text,
+                                    fontSize: 20
+                                }]}>Especially Avoid</Text>
+                                <Text style={[styles.cardText, {color: 'red'}]}>{substance.properties.avoid}</Text>
+                            </View>
+                        }
                         {substance.interactions?.dangerous?.length <= 0 && substance.interactions?.unsafe?.length <= 0 && substance.interactions?.caution?.length <= 0 && (
                             <View style={{
                                 flex: 1,
@@ -127,7 +178,7 @@ const SubstanceDetails = () => {
                                 justifyContent: 'center',
                                 padding: 20,
                                 height: 100
-                            }}>
+                            }}>.
                                 <Text
                                     style={[styles.cardText, {
                                         color: Colors[colorScheme ?? 'light'].text,
@@ -141,7 +192,8 @@ const SubstanceDetails = () => {
                             </View>
                         )}
                     </Card>
-
+                    <View>
+                        {substance.effects_detailed.length <= 0 || substance.effects.length <= 0 &&
                     <Card containerStyle={[styles.card, {backgroundColor: Colors[colorScheme ?? 'light'].background}]}>
                         <Text style={[styles.cardTitle, {color: Colors[colorScheme ?? 'light'].text}]}>Possible
                             Effects</Text>
@@ -150,11 +202,11 @@ const SubstanceDetails = () => {
                         </Text>
                         <Text style={[styles.cardText, {color: Colors[colorScheme ?? 'light'].text}]}>Just because an
                             effect is listed here or someone you know experiences certain effects does not guarantee
-                            they happen</Text>
+                            they happen </Text>
                         <View style={styles.effectsContainer}>
                             <FlatList
                                 data={(substance.effects_detailed.length > 0 ? substance.effects_detailed : substance.effects)}
-                                style={{maxHeight: 400, backgroundColor: Colors[colorScheme ?? 'light'].background}}
+                                style={{height: 380, backgroundColor: Colors[colorScheme ?? 'light'].background}}
                                 keyExtractor={(_, index) => index.toString()}
                                 renderItem={({item: effect}) => (
                                     <TouchableOpacity
@@ -190,14 +242,18 @@ const SubstanceDetails = () => {
                             </View>
                         )}
                     </Card>
+                        }
+                        {substance.properties?.note?.toLowerCase().startsWith("addiction potential") &&
+                            <Card
+                                containerStyle={[styles.card, {backgroundColor: Colors[colorScheme ?? 'light'].background}]}>
+                                <Text style={[styles.cardTitle, {color: Colors[colorScheme ?? 'light'].text}]}>Addiction
+                                    Potential</Text>
+                                <Text
+                                    style={[styles.cardText, {color: Colors[colorScheme ?? 'light'].text}]}>{substance.properties.note.split("Addiction potential: ")[1]}</Text>
+                            </Card>
+                        }
+                    </View>
 
-                    <Card containerStyle={[styles.card, {backgroundColor: Colors[colorScheme ?? 'light'].background}]}>
-                        <Text style={[styles.cardTitle, {color: Colors[colorScheme ?? 'light'].text}]}>Links</Text>
-                        {substance.links?.wikipedia?.map((link, index) => (
-                            <Text key={index}
-                                  style={[styles.cardText, {color: Colors[colorScheme ?? 'light'].text}]}>{link}</Text>
-                        ))}
-                    </Card>
                     {/* Bottom spacer */}
                     <View style={{height: 80}}/>
                 </ScrollView>
@@ -254,6 +310,7 @@ const styles = StyleSheet.create({
         margin: 10,
         borderRadius: 10,
         padding: 15,
+        width: cardWidth,
     },
     cardTitle: {
         fontSize: 25,

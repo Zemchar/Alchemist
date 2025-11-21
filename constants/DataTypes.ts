@@ -16,8 +16,108 @@ export interface Location {
     longitude?: number;
 }
 
+export class Mass {
+    base: number = 0; // the base value for the number in mg
+    multiplier: number = 0;
+    adjusted: number = 0;
+    unit: string = "mg"
+
+    constructor(massStr: string) {
+        const match = massStr.match(/^(\d+\.?\d*)([a-zA-Zµ]+)$/);
+        if (!match) {
+            throw new Error(`Invalid mass format. Expected format: number followed by units (e.g., "100mg")\nGot: ${massStr}`);
+        }
+        this.base = parseFloat(match[1]) * Mass.getMultiplierFromUnit(match[2]); // Convert to mg
+        this.unit = match[2].toLowerCase();
+        this.multiplier = Mass.getMultiplierFromUnit(this.unit);
+        this.adjusted = this.base / Mass.getMultiplierFromUnit(this.unit);
+        this.setNewUnitFromBase();
+    }
+
+    /**
+     * Gets the multiplier value for the given unit of measurement.
+     *
+     * @param unit The unit of measurement as a string (e.g., 'mcg', 'mg', 'g', 'kg').
+     * @return The multiplier corresponding to the unit. If the unit is not recognized, returns 1 by default.
+     * @private
+     */
+    public static getMultiplierFromUnit(unit: string): number {
+        const check = unit.toLowerCase();
+        switch (check) {
+            case check.startsWith('µ') && check:
+            case check.startsWith('mc') && check:
+            case check.startsWith('u') && check:
+                return 0.001;
+            case check.startsWith('m') && check:
+                return 1;
+            case check.startsWith('g') && check:
+                return 1000;
+            case check.startsWith('k') && check:
+                return 1000000;
+            default:
+                return 1;
+        }
+    }
+
+    private setNewUnitFromBase() {
+        const value = this.base;
+        if (value >= 1000000) {
+            this.unit = 'kg';
+            this.adjusted = value / 1000000;
+        } else if (value >= 1000) {
+            this.unit = 'g';
+            this.adjusted = value / 1000;
+        } else if (value >= 1) {
+            this.unit = 'mg';
+            this.adjusted = value;
+        } else {
+            this.unit = 'mcg';
+            this.adjusted = value * 1000;
+        }
+        this.multiplier = Mass.getMultiplierFromUnit(this.unit);
+        return this.unit;
+    }
+
+    /**
+     * Adds a mass value to the current base value after converting it to the specified unit.
+     *
+     * @param {string} massString - The string representation of the mass to be added.
+     * @return {number} The updated base value after adding the converted mass.
+     */
+    public add(massString: string) {
+        let m = new Mass(massString);
+        this.base += m.base;
+        this.setNewUnitFromBase();
+        return this.base;
+    }
+
+    /**
+     * Converts the base mass to a string representation in the desired unit.
+     *
+     * @param {string} desiredUnit - The unit to which the base mass should be converted.
+     * @return {string} A string representation of the mass in the desired unit.
+     */
+    public getMassString(desiredUnit: string) {
+        const value = this.base / Mass.getMultiplierFromUnit(desiredUnit);
+        return value + desiredUnit;
+    }
+
+    public toString() {
+        return this.adjusted + this.unit;
+    }
+
+    /**
+     * Calculates the mass number in the specified unit.
+     *
+     * @param {string} desiredUnit - The unit in which the mass number should be calculated.
+     * @return {number} The calculated mass number in the desired unit.
+     */
+    public getMassNumber(desiredUnit: string) {
+        return this.base / Mass.getMultiplierFromUnit(desiredUnit);
+    }
+}
 export interface Ingestion {
-    dose: number;
+    dose: Mass;
     substanceName: string;
     units: string;
     administrationRoute: string;

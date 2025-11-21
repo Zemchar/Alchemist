@@ -1,8 +1,8 @@
-import { View, Text, StyleSheet, ScrollView, Pressable, Linking } from 'react-native';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
-import { BlurView } from 'expo-blur';
+import {Linking, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {IconSymbol} from '@/components/ui/IconSymbol';
+import {Colors} from '@/constants/Colors';
+import {useColorScheme} from '@/hooks/useColorScheme';
+import {BlurView} from 'expo-blur';
 
 export default function SaferScreen() {
   const colorScheme = useColorScheme();
