@@ -1,50 +1,45 @@
-# Welcome to your Expo app 👋
+# The Alchemist
+*Don't practice alchemy without a friend!*
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+# The Goal
+This is an app designed to replace PsychonautWiki's Journal after the creator traded its community for a quick buck. If you found yourself lost and confused what to do when PsychonuatWiki Journal started demanding payment for its servecies, **Alchemist** is for you. 
 
-## Get started
+Harm Reduction is not a joke, and access to high quality and clean data can go a long way. 
 
-1. Install dependencies
+That is why **Alchemist belives high quality information and useful tools should be free**, especially when the health and saftey of others is on the line. And as such, **Alchemist will be free**. ***Forever***
 
-   ```bash
-   npm install
-   ```
+# The Design
+Alchemist not only aims to replace PsychonautWiki's offering completely, but surpass it. 
 
-2. Start the app
+Have an extensive amount of data from PsychonautWiki journal? Import it directly into Alchemist!
 
-   ```bash
-    npx expo start
-   ```
+All of the features you know and love will be present, plus a little more. Data is sourced from both PsychonautWiki *and* Tripsit.me, enabling a huge offering of substances that were not in PsychonautWiki Journal (updated every release).
 
-In the output, you'll find options to open the app in a
+Alchemist currently has implemented: 
+* Substance Statistics
+   * Top Substances
+   * Total Uses
+   * Total Mass Consumed over Lifetime
+* Journal Entries
+   * Duration Graphs
+   * Interaction Checking
+   * Multiple Doses/Experience
+* Substance Information
+* Searching for Journals/Substance Information
+* Custom substance colors
+* QuickAdd of substances
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+The beta release will aim to be fully feature complete when compared to PsychonautWiki Journal, and this is when the app is considered ready to launch on app stores. 
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+The full release will have:
+* Sharing with freinds (via private servers)
+* Harm Reduction tools & calculators
+* User Suggested Features!
 
-## Get a fresh project
+# The People
+This project was made almost entirely by [https://github.com/Zemchar/](Juniper Mixon), with setup help from the SubstanceSync team. The project was archived, so this project is now considered independednt. 
 
-When you're ready, run:
+# The Cost
+*** Alchemist will be Free. Forever*** 
 
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+However, it is not free to publish apps and keep them maintained. If you like what I do and wish to keep this project going, please consider donating.
