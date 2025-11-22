@@ -24,6 +24,7 @@ interface AreaChartProps {
     paddingVertical?: number;
     lineColor?: string[];
     fillColor?: string[];
+    maxIntensity?: number; // Add this prop to allow custom max intensity
 }
 
 export const AreaChart: React.FC<AreaChartProps> = ({
@@ -34,8 +35,9 @@ export const AreaChart: React.FC<AreaChartProps> = ({
                                                         paddingLeft = 10,
                                                         paddingRight = 20,
                                                         paddingVertical = 20,
-                                                        lineColor = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD'],
+                                                        lineColor = [],
                                                         fillColor = [],
+                                                        maxIntensity = 5,
                                                     }) => {
     const colorScheme = useColorScheme();
     const defaultTextColor = Colors[colorScheme ?? 'light'].text;
@@ -50,8 +52,6 @@ export const AreaChart: React.FC<AreaChartProps> = ({
         .map(point => point.time)
         .filter(time => typeof time === 'number' && isFinite(time));
 
-    console.log('Time points:', timePoints);
-
     if (timePoints.length === 0) return null;
 
     // Simple min/max calculations
@@ -60,15 +60,14 @@ export const AreaChart: React.FC<AreaChartProps> = ({
 
     console.log('Time range:', {minTime, maxTime});
 
-    // Simple linear scale
+    // Simple linear scale - updated to support level 5
     const xScale = (hours: number): number => {
         return (hours / maxTime) * chartWidth;
     };
 
     const yScale = (intensity: number): number => {
-        return chartHeight - (intensity * chartHeight / 4);
+        return chartHeight - (intensity * chartHeight / maxIntensity);
     };
-
 
     // Generate hour ticks
     const hourTicks = Array.from(
@@ -80,6 +79,9 @@ export const AreaChart: React.FC<AreaChartProps> = ({
             }
         ));
 
+    // Updated intensity labels to support level 5
+    const intensityLabels = ['no effects', 'mild', 'moderate', 'strong', 'intense', 'extreme'];
+    const visibleLabels = intensityLabels.slice(0, maxIntensity + 1);
 
     // Generate paths
     const generatePaths = (dataset: DataPoint[]) => {
@@ -143,8 +145,8 @@ export const AreaChart: React.FC<AreaChartProps> = ({
                     strokeWidth="1"
                 />
 
-                {/* Y-axis labels */}
-                {['no effects', 'mild', 'moderate', 'strong', 'intense'].map((label, i) => (
+                {/* Y-axis labels - updated to support level 5 */}
+                {visibleLabels.map((label, i) => (
                     <React.Fragment key={`y-tick-${i}`}>
                         <Line
                             x1={paddingLeft - 5}
@@ -154,6 +156,15 @@ export const AreaChart: React.FC<AreaChartProps> = ({
                             stroke={defaultTextColor}
                             strokeWidth="1"
                         />
+                        <SvgText
+                            x={paddingLeft - 8}
+                            y={yScale(i) + paddingVertical + 3}
+                            fill={defaultTextColor}
+                            textAnchor="end"
+                            fontSize="8"
+                        >
+                            {label}
+                        </SvgText>
                     </React.Fragment>
                 ))}
 
@@ -186,14 +197,13 @@ export const AreaChart: React.FC<AreaChartProps> = ({
                     const {pathData, areaPath} = generatePaths(dataset);
                     if (!pathData || !areaPath) return null;
 
-                    const currentColor = lineColor[index % lineColor.length];
-                    const currentFill = fillColor[index] || currentColor;
+                    const currentColor = (lineColor.length === 0) ? "#FF00FF" : lineColor[index % lineColor.length];
 
                     return (
                         <React.Fragment key={key}>
                             <Path
                                 d={areaPath}
-                                fill={currentFill}
+                                fill={currentColor}
                                 fillOpacity="0.1"
                             />
                             <Path

@@ -16,11 +16,42 @@ import {Colors} from '@/constants/Colors';
 import {useColorScheme} from '@/hooks/useColorScheme';
 import {LinearGradient} from 'expo-linear-gradient';
 import {useFocusEffect, useNavigation} from '@react-navigation/native';
-import {Experience, Ingestion, Mass, MergedSubstanceData, RawSubstanceData} from "@/constants/DataTypes";
+import {Experience, Ingestion, MergedSubstanceData, RawSubstanceData} from "@/constants/DataTypes";
 import {Chip} from '@rneui/themed';
 import * as fs from 'expo-file-system';
 import Toast from 'react-native-toast-message';
 import AddSubstance, {handleSubmit, SubstanceIngestionData} from '@/app/screens/AddSubstance';
+
+const originalLog = console.log;
+
+['log', 'warn', 'error'].forEach((methodName) => {
+    const originalMethod = console[methodName];
+    console[methodName] = (...args) => {
+        let initiator = 'unknown place';
+        try {
+            throw new Error();
+        } catch (e) {
+            if (typeof e.stack === 'string') {
+                let isFirst = true;
+                for (const line of e.stack.split('\n')) {
+                    const matches = line.match(/^\s+at\s+(.*)/);
+                    if (matches) {
+                        if (!isFirst) { // first line - current function
+                            // second line - caller (what we are looking for)
+                            initiator = matches[1];
+                            break;
+                        }
+                        isFirst = false;
+                    }
+                }
+            }
+        }
+        originalMethod.apply(console, [`[${new Date(Date.now()).toTimeString().split(" ")[0]}][${initiator.split('(')[0].trim()}]`, ...args]);
+    };
+});
+
+
+console.log("ExploreScreen.tsx loaded");
 
 // --- Constants ---
 const fileUri = fs.documentDirectory + 'experiences.json';
@@ -261,82 +292,81 @@ export default function ExploreScreen() {
     };
 
     const onFabPress = async () => {
-        if (quickAddData) {
-            const recentExperience = allExperiences.length > 0 ? allExperiences[allExperiences.length - 1] : null;
-            const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
-            if (recentExperience && recentExperience?.ingestions[recentExperience?.ingestions.length - 1].creationDate >= twentyFourHoursAgo && !quickAddData.title.split("|").pop()?.toLowerCase().startsWith("n")) {
-                // Add to recent experience
-                console.log("Adding to Recent Experience")
-
-                const updatedExperience = {
-                    ...recentExperience,
-                    ingestions: [...recentExperience.ingestions, {
-                        substanceName: quickAddData.substance,
-                        dose: new Mass(quickAddData.dose.toString() + quickAddData.units + "g"),
-                        units: quickAddData.units + "g",
-                        administrationRoute: quickAddData.administrationRoute,
-                        time: Date.now(),
-                        creationDate: Date.now(),
-                        notes: '',
-                        consumerName: null,
-                        endTime: null,
-                        isDoseAnEstimate: false,
-                        estimatedDoseStandardDeviation: null,
-                        customUnitId: null,
-                        stomachFullness: null
-                    }]
-                };
-                const updatedData = [...allExperiences.slice(0, -1), updatedExperience];
-                setAllExperiences(updatedData);
-                await saveExperiencesToFile(updatedData);
-                setSearchQuery('')
-                Toast.show({
-                    type: "success",
-                    text1: `Added a ${quickAddData.substance} ingestion to ${recentExperience.title}`
-                })
-            } else {
-                // Create new experience 
-                const newExperience: Experience = {
-                    creationDate: Date.now(),
-                    sortDate: Date.now(),
-                    title: (quickAddData.title && quickAddData.title.length > 0) ? quickAddData.title : `Quick Add: ${quickAddData.substance}`,
-                    ingestions: [{
-                        substanceName: quickAddData.substance,
-                        dose: new Mass(quickAddData.dose.toString() + quickAddData.units),
-                        units: quickAddData.units,
-                        administrationRoute: quickAddData.administrationRoute,
-                        time: Date.now(),
-                        creationDate: Date.now(),
-                        notes: '',
-                        consumerName: null,
-                        endTime: null,
-                        isDoseAnEstimate: false,
-                        estimatedDoseStandardDeviation: null,
-                        customUnitId: null,
-                        stomachFullness: null
-                    }],
-                    location: null,
-                    timedNotes: [],
-                    isFavorite: false,
-                    text: '',
-                    ratings: [],
-                    fullJSON: ''
-                };
-                const updatedData = [...allExperiences, newExperience];
-                setAllExperiences(updatedData);
-                await saveExperiencesToFile(updatedData);
-                Toast.show({
-                    type: "success",
-                    text1: `Created a new ${newExperience.ingestions[0].substanceName} experience called ${newExperience.title}`
-                })
-            }
-
-            setSearchQuery('');
-        } else {
-            // Instead of navigating, show the modal
+        // if (quickAddData) {
+        //     const recentExperience = allExperiences.length > 0 ? allExperiences[allExperiences.length - 1] : null;
+        //     const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
+        //     if (recentExperience && recentExperience?.ingestions[recentExperience?.ingestions.length - 1].creationDate >= twentyFourHoursAgo && !quickAddData.title.split("|").pop()?.toLowerCase().startsWith("n")) {
+        //         // Add to recent experience
+        //         console.log("Adding to Recent Experience")
+        //
+        //         const updatedExperience = {
+        //             ...recentExperience,
+        //             ingestions: [...recentExperience.ingestions, {
+        //                 substanceName: quickAddData.substance,
+        //                 dose: new Mass(quickAddData.dose.toString() + quickAddData.units + "g"),
+        //                 units: quickAddData.units + "g",
+        //                 administrationRoute: quickAddData.administrationRoute,
+        //                 time: Date.now(),
+        //                 creationDate: Date.now(),
+        //                 notes: '',
+        //                 consumerName: null,
+        //                 endTime: null,
+        //                 isDoseAnEstimate: false,
+        //                 estimatedDoseStandardDeviation: null,
+        //                 customUnitId: null,
+        //                 stomachFullness: null
+        //             }]
+        //         };
+        //         const updatedData = [...allExperiences.slice(0, -1), updatedExperience];
+        //         setAllExperiences(updatedData);
+        //         await saveExperiencesToFile(updatedData);
+        //         setSearchQuery('')
+        //         Toast.show({
+        //             type: "success",
+        //             text1: `Added a ${quickAddData.substance} ingestion to ${recentExperience.title}`
+        //         })
+        //     } else {
+        //         // Create new experience
+        //         const newExperience: Experience = {
+        //             creationDate: Date.now(),
+        //             sortDate: Date.now(),
+        //             title: (quickAddData.title && quickAddData.title.length > 0) ? quickAddData.title : `Quick Add: ${quickAddData.substance}`,
+        //             ingestions: [{
+        //                 substanceName: quickAddData.substance,
+        //                 dose: new Mass(quickAddData.dose.toString() + quickAddData.units),
+        //                 units: quickAddData.units,
+        //                 administrationRoute: quickAddData.administrationRoute,
+        //                 time: Date.now(),
+        //                 creationDate: Date.now(),
+        //                 notes: '',
+        //                 consumerName: null,
+        //                 endTime: null,
+        //                 isDoseAnEstimate: false,
+        //                 estimatedDoseStandardDeviation: null,
+        //                 customUnitId: null,
+        //                 stomachFullness: null
+        //             }],
+        //             location: null,
+        //             timedNotes: [],
+        //             isFavorite: false,
+        //             text: '',
+        //             ratings: [],
+        //             fullJSON: ''
+        //         };
+        //         const updatedData = [...allExperiences, newExperience];
+        //         setAllExperiences(updatedData);
+        //         await saveExperiencesToFile(updatedData);
+        //         Toast.show({
+        //             type: "success",
+        //             text1: `Created a new ${newExperience.ingestions[0].substanceName} experience called ${newExperience.title}`
+        //         })
+        //     }
+        //
+        //     setSearchQuery('');
+        // } else {
+        //     // Instead of navigating, show the modal
             setIsAddSubstanceVisible(true);
         }
-    };
 
     // Add handler for substance addition
     const handleAddSubstance = async (data: SubstanceIngestionData) => {
@@ -442,7 +472,7 @@ export default function ExploreScreen() {
             }
 
             // Check for route match
-            if (routes.routes.some(r =>
+            if (Object.keys(routes.routes).some(r =>
                 r.toLowerCase() === part.toLowerCase()
             )) {
                 administrationRoute = part;
@@ -712,42 +742,42 @@ export default function ExploreScreen() {
                 </View>
 
                 {/* Quick Add Data View */}
-                {(partialQuickAddData.substance || partialQuickAddData.dose || partialQuickAddData.administrationRoute || partialQuickAddData.title) && (
-                    <View style={[{maxHeight: 80, paddingVertical: 5, paddingHorizontal: 15}]}>
-                        <Text style={[styles.suggestionChipText, {
-                            color: metaTextColor
-                        }]}>{(partialQuickAddData.dose && partialQuickAddData.administrationRoute && partialQuickAddData.substance) ? "QuickAdd Available! (Optionally Add):" : "To QuickAdd Please Specify: "}</Text>
-                        {partialQuickAddData.substance ? "" :
-                            <Text style={[styles.suggestionChipText, {
-                                color: metaTextColor
-                            }]}>Substance{((partialQuickAddData.substance ? 0 : 1) +
-                                ((partialQuickAddData.dose && partialQuickAddData.units) ? 0 : 1) +
-                                (partialQuickAddData.administrationRoute ? 0 : 1) +
-                                (partialQuickAddData.title ? 0 : 1)) > 1 ? ", " : ""}</Text>}
-                        {(partialQuickAddData.dose && partialQuickAddData.units) ? "" :
-                            <Text style={[styles.suggestionChipText, {
-                                color: metaTextColor
-                            }]}>Dose{((partialQuickAddData.substance ? 0 : 1) +
-                                ((partialQuickAddData.dose && partialQuickAddData.units) ? 0 : 1) +
-                                (partialQuickAddData.administrationRoute ? 0 : 1) +
-                                (partialQuickAddData.title ? 0 : 1)) > 1 ? ", " : ""}</Text>}
-                        {partialQuickAddData.administrationRoute ? "" :
-                            <Text style={[styles.suggestionChipText, {
-                                color: metaTextColor
-                            }]}>Route{((partialQuickAddData.substance ? 0 : 1) +
-                                ((partialQuickAddData.dose && partialQuickAddData.units) ? 0 : 1) +
-                                (partialQuickAddData.administrationRoute ? 0 : 1) +
-                                (partialQuickAddData.title ? 0 : 1)) > 1 ? " and " : ""}</Text>}
-                        {partialQuickAddData.title ? "" :
-                            <Text style={[styles.suggestionChipText, {
-                                color: metaTextColor
-                            }]}>Title</Text>}
+                {/*{(partialQuickAddData.substance || partialQuickAddData.dose || partialQuickAddData.administrationRoute || partialQuickAddData.title) && (*/}
+                {/*    <View style={[{maxHeight: 80, paddingVertical: 5, paddingHorizontal: 15}]}>*/}
+                {/*        <Text style={[styles.suggestionChipText, {*/}
+                {/*            color: metaTextColor*/}
+                {/*        }]}>{(partialQuickAddData.dose && partialQuickAddData.administrationRoute && partialQuickAddData.substance) ? "QuickAdd Available! (Optionally Add):" : "To QuickAdd Please Specify: "}</Text>*/}
+                {/*        {partialQuickAddData.substance ? "" :*/}
+                {/*            <Text style={[styles.suggestionChipText, {*/}
+                {/*                color: metaTextColor*/}
+                {/*            }]}>Substance{((partialQuickAddData.substance ? 0 : 1) +*/}
+                {/*                ((partialQuickAddData.dose && partialQuickAddData.units) ? 0 : 1) +*/}
+                {/*                (partialQuickAddData.administrationRoute ? 0 : 1) +*/}
+                {/*                (partialQuickAddData.title ? 0 : 1)) > 1 ? ", " : ""}</Text>}*/}
+                {/*        {(partialQuickAddData.dose && partialQuickAddData.units) ? "" :*/}
+                {/*            <Text style={[styles.suggestionChipText, {*/}
+                {/*                color: metaTextColor*/}
+                {/*            }]}>Dose{((partialQuickAddData.substance ? 0 : 1) +*/}
+                {/*                ((partialQuickAddData.dose && partialQuickAddData.units) ? 0 : 1) +*/}
+                {/*                (partialQuickAddData.administrationRoute ? 0 : 1) +*/}
+                {/*                (partialQuickAddData.title ? 0 : 1)) > 1 ? ", " : ""}</Text>}*/}
+                {/*        {partialQuickAddData.administrationRoute ? "" :*/}
+                {/*            <Text style={[styles.suggestionChipText, {*/}
+                {/*                color: metaTextColor*/}
+                {/*            }]}>Route{((partialQuickAddData.substance ? 0 : 1) +*/}
+                {/*                ((partialQuickAddData.dose && partialQuickAddData.units) ? 0 : 1) +*/}
+                {/*                (partialQuickAddData.administrationRoute ? 0 : 1) +*/}
+                {/*                (partialQuickAddData.title ? 0 : 1)) > 1 ? " and " : ""}</Text>}*/}
+                {/*        {partialQuickAddData.title ? "" :*/}
+                {/*            <Text style={[styles.suggestionChipText, {*/}
+                {/*                color: metaTextColor*/}
+                {/*            }]}>Title</Text>}*/}
 
-                        <Text style={[styles.suggestionChipText, {
-                            color: metaTextColor
-                        }]}></Text>
-                    </View>
-                )}
+                {/*        <Text style={[styles.suggestionChipText, {*/}
+                {/*            color: metaTextColor*/}
+                {/*        }]}></Text>*/}
+                {/*    </View>*/}
+                {/*)}*/}
 
                 {/* Results Count */}
                 <Text style={styles.resultCount}>

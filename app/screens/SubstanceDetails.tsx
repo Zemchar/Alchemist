@@ -16,17 +16,50 @@ import {IconSymbol} from "@/components/ui/IconSymbol";
 import {useNavigation, useRoute} from "@react-navigation/native";
 import {Card} from "@rneui/themed";
 import {AreaChart} from "@/components/AreaChart";
+import {calculateSubstanceGraph} from "@/app/screens/ExperienceDetails";
+import substanceData from '@/constants/datamed/data/data.json';
+import {routes as RoutesNColors} from "@/constants/datamed/data/routes.json"
 
 const cardWidth = Dimensions.get('window').width - 20
 
 
 const SubstanceDetails = () => {
     const route = useRoute();
+    const warningWords = ["Caution", "Unsafe", "Dangerous"]
     // @ts-ignore - Access the substance from route.params
     const {substance} = route.params;
     const navigation = useNavigation();
     const colorScheme = useColorScheme();
+    let substanceRoutes = []
+    let graphData = calculateSubstanceGraph(substance.name)
+    let substanceColors = []
 
+    let maxDoses = {}
+    Object.keys(graphData).forEach(val => {
+        const route = val.split("|")[1];
+        const doseInfo = substanceData[substance.name.toLowerCase()]?.psychonautwiki?.dosage?.routes[route];
+        const heavyDose = doseInfo?.heavy;
+        console.log(route, heavyDose)
+        maxDoses[val] = heavyDose || Number.MAX_SAFE_INTEGER;
+        if (RoutesNColors[route]) {
+            substanceColors.push({route: route, color: RoutesNColors[route]})
+        }
+    })
+
+    let sortedDosesByHeavy = Object.entries(maxDoses).sort((a, b) => a[1] - b[1]);
+    let ranks = {};
+    sortedDosesByHeavy.forEach((dose, index) => {
+        ranks[dose[0]] = 5 - index; // 5 for lowest heavy dose, decreasing as heavy dose increases
+        if (index >= 4) ranks[dose[0]] = 1; // Cap at 1 for any remaining routes
+    });
+    Object.keys(graphData).forEach(val => {
+        graphData[val] = graphData[val].map(point => ({
+            time: point.time,
+            intensity: point.intensity === 0 ? 0 : ranks[val]
+        }))
+    })
+
+    console.log(graphData)
     if (!substance) {
         return (
             <SafeAreaView style={[styles.container, {backgroundColor: Colors[colorScheme ?? 'light'].background}]}>
@@ -78,19 +111,9 @@ const SubstanceDetails = () => {
                             <Text style={[styles.cardTitle, {color: Colors[colorScheme ?? 'light'].text}]}>Dosage &
                                 Timing</Text>
                             <AreaChart
-                                data={[
-                                    [
-                                        {value: 1, label: '0h'},
-                                        {value: 2, label: '1h'},
-                                        {value: 3, label: '2h'},
-                                        {value: 4, label: '3h'},
-                                        {value: 2, label: '4h'},
-                                        {value: 1, label: '5h'}
-                                    ]
-                                ]}
-                                lineColor={["#a8ffae"]}
+                                data={graphData}
+                                lineColor={substanceColors.map(color => color.color)}
                                 hideDots={true}
-
                                 height={200}
                             />
 
@@ -98,8 +121,9 @@ const SubstanceDetails = () => {
                                 <View key={route}>
                                     <Text style={[styles.cardText, {color: Colors[colorScheme ?? 'light'].text}]}>
                                         {route.toUpperCase()}:
-                                        //@ts-ignore
+                                        {info.light && ` Light: ${info.light.min}-${info.light.max} ${info.units}`}
                                         {info.common && ` Common: ${info.common.min}-${info.common.max} ${info.units}`}
+                                        {info.strong && ` Strong: ${info.strong.min}-${info.strong.max} ${info.units}`}
                                     </Text>
                                 </View>
                             ))}
@@ -114,22 +138,22 @@ const SubstanceDetails = () => {
                             data={[
                                 {
                                     title: "Dangerous",
-                                    items: substance.interactions?.dangerous || [],
+                                    items: [...new Set(substance.interactions?.dangerous || [])],
                                     color: Colors[colorScheme ?? 'light'].error,
                                     warningSigns: 3
                                 },
                                 {
                                     title: "Unsafe",
-                                    items: substance.interactions?.unsafe || [],
+                                    items: [...new Set(substance.interactions?.unsafe || [])],
                                     color: Colors[colorScheme ?? 'light'].warning,
                                     warningSigns: 2
                                 },
                                 {
                                     title: "Caution",
-                                    items: substance.interactions?.caution || [],
+                                    items: [...new Set(substance.interactions?.caution || [])],
                                     color: Colors[colorScheme ?? 'light'].caution,
                                     warningSigns: 1
-                                }
+                                },
                             ]}
                             renderItem={({item}) => (
                                 <>
@@ -147,10 +171,11 @@ const SubstanceDetails = () => {
                                                 alignItems: 'center'
                                             }}>
                                                 <Text style={[styles.cardText, {color: item.color}]}>
+                                                    {"⚠".repeat(item.warningSigns) + " "}
                                                     {interaction}
                                                 </Text>
                                                 <Text style={[styles.cardText, {color: item.color}]}>
-                                                    {"⚠".repeat(item.warningSigns)}
+                                                    {item.title}
                                                 </Text>
                                             </View>
                                         </TouchableOpacity>
@@ -167,8 +192,8 @@ const SubstanceDetails = () => {
                                 <Text style={[styles.cardText, {
                                     color: Colors[colorScheme ?? 'light'].text,
                                     fontSize: 20
-                                }]}>Especially Avoid</Text>
-                                <Text style={[styles.cardText, {color: 'red'}]}>{substance.properties.avoid}</Text>
+                                }]}>Also Avoid</Text>
+                                <Text style={[styles.cardText, {color: '#0074ff'}]}>{substance.properties.avoid}</Text>
                             </View>
                         }
                         {substance.interactions?.dangerous?.length <= 0 && substance.interactions?.unsafe?.length <= 0 && substance.interactions?.caution?.length <= 0 && (

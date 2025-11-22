@@ -78,6 +78,129 @@ const CurrentTimeLine = ({progress}: { progress: number }) => (
     <View style={[styles.mockTimeLine, {left: `${progress * 100}%`}]}/>
 );
 
+/**
+ * Generates a graph representing the onset, peak, and aftereffects of a substance's timing profile
+ * based on ingestion data. It primarily uses data from Psychonaut Wiki, with a fallback to TripSit
+ * if the former is unavailable.
+ *
+ * @param {object|string} ing - The ingestion data or substance name. If an object, it should
+ * include details such as administration route and substance name. If a string, it specifies
+ * the name of the substance.
+ * @return {Record<string, DataPoint[]> | void} A record where keys are substance names
+ * and values are arrays of DataPoint objects representing time and intensity, or void if
+ * the substance or timing data doesn't exist.
+ */
+export function calculateSubstanceGraph(ing: any) {
+  let substance, name;
+  const cDat: Record<string, DataPoint[]> = {};
+  console.log(typeof ing, ing.constructor.name)
+  if (typeof ing === 'string') {
+    substance = substanceData[ing.toLowerCase()];
+    name = ing.toLowerCase();
+  } else if (typeof ing === "object" && ing.substanceName) {
+    substance = substanceData[ing.substanceName.toLowerCase()];
+    name = ing.substanceName.toLowerCase();
+  } else return;
+  console.log("passed initial checks");
+
+  // Try psychonaut wiki data first
+  const timing = substance?.psychonautwiki?.timing || substance?.tripsit?.timing;
+  if (!timing) {
+    console.log("No timing data found for " + name);
+    return;
+  }
+  console.log(substance.psychonautwiki?.timing ? "psycho" : `tripsit t:${substance.tripsit?.timing}`);
+
+  // Enumerate all routes for the substance
+  const routes = Object.keys(timing.onset || {});
+
+  function calculateTiming(route: string) {
+    const multiplier = (unit: string) => unit === 'hours' ? 1 : 0.016;
+
+    const calculate = (timing: any, prop: string) => parseFloat((Math.max(...(timing[prop]?.[route]?.value?.split('-').map(Number) || [0])) * multiplier(timing[prop]?.[route]?.unit)).toFixed(1));
+    const calculateMin = (timing: any, prop: string, adjustment: number = 0) => {
+      //calculates the minimum value with optional adjustment for the intensity of the dosage. 0 means minimum value, 5 means maximum value
+      let min = parseFloat((Math.min(...(timing[prop]?.[route]?.value?.split('-').map(Number) || [0])) * multiplier(timing[prop]?.[route]?.unit)).toFixed(1));
+      let diff = calculate(timing, prop, adjustment) - min;
+      diff = (diff < 0) ? 0 : diff;
+      return min + (diff / 5) * adjustment
+    }
+    let attenuation = calculateIntensityLevel(0);
+
+    const onsetDuration = calculate(timing, 'onset');
+    const peakDuration = calculate(timing, 'duration', attenuation);
+    const afterDuration = calculateMin(timing, 'aftereffects', attenuation);
+    return [onsetDuration, peakDuration, afterDuration];
+  }
+
+  let timings: number[] = [];
+
+  function calculateIntensityLevel(intensityMax: number, route) {
+    if (ing.dose) {
+      const dose = substance?.psychonautwiki?.dosage.routes[route] || substance?.tripsit?.dose;
+      if (dose) {
+        console.log();
+        if (ing.dose.adjusted <= dose.threshold) {
+          intensityMax = 0;
+        } else if (ing.dose.adjusted <= dose.light?.max) {
+          intensityMax = 1;
+        } else if (ing.dose.adjusted <= dose.common?.max) {
+          intensityMax = 2;
+        } else if (ing.dose.adjusted <= dose.strong?.max) {
+          intensityMax = 3;
+        } else if (ing.dose.adjusted <= dose.heavy) {
+          intensityMax = 4;
+        } else {
+          intensityMax = 5;
+        }
+      } else {
+        intensityMax = 4;
+      }
+    }
+    return intensityMax;
+  }
+
+  function calculatecDat(r) {
+    let intensityMax = 4;
+    intensityMax = calculateIntensityLevel(intensityMax, r);
+    const substanceName = typeof ing === 'string' ? ing : ing.substanceName;
+    cDat[substanceName.toLowerCase() + "|" + r] = [
+      {time: 0, intensity: 0},
+      {time: timings[0], intensity: intensityMax},
+      {time: timings[0] + timings[1], intensity: intensityMax},
+      {time: timings[0] + timings[1] + timings[2], intensity: 0}
+    ];
+  }
+
+  //Logic tree
+  if (typeof ing === "object" && ing.constructor?.name === 'Ingestion') {
+    console.log("Ingestion found");
+    const route = ing.administrationRoute?.toLowerCase();
+    timings = calculateTiming(route);
+    calculatecDat();
+  } else if (routes.length <= 1 && !substance.psychonautwiki?.timing && timing) {
+    const onsetRange = timing.onset?.value?.value?.split('-').map(Number) || [0];
+    const onsetMultiplier = timing.onset?.value?.unit === 'hours' ? 1 : 0.016;
+    timings[0] = parseFloat((Math.max(...onsetRange) * onsetMultiplier).toFixed(1));
+
+    const durationRange = timing.duration?.value?.value?.split('-').map(Number) || [0];
+    const durationMultiplier = timing.duration?.value?.unit === 'hours' ? 1 : 0.016;
+    timings[1] = parseFloat((Math.max(...durationRange) * durationMultiplier).toFixed(1));
+
+    const afterRange = timing.aftereffects?.value?.value?.split('-').map(Number) || [0];
+    const afterMultiplier = timing.aftereffects?.value?.unit === 'hours' ? 1 : 0.016;
+    timings[2] = parseFloat((afterRange[0] * afterMultiplier).toFixed(1));
+    calculatecDat(routes[0] || substance?.tripsit?.dosage?.routes[Object.keys(substance.tripsit?.dosage?.routes)[0]].toLowerCase());
+  } else if (routes.length > 1 || substance.psychonautwiki) {
+    routes.forEach(route => {
+      timings = calculateTiming(route);
+      calculatecDat(route);
+    });
+  } else return;
+  console.log(timings, cDat);
+  return cDat;
+}
+
 export default function ExperienceDetails() {
   // @ts-ignore
   const route = useRoute<ExperienceDetailsRouteProps>();
@@ -104,6 +227,7 @@ export default function ExperienceDetails() {
     }, 10000);
     return () => clearInterval(interval);
   }, []);
+
   useEffect(() => {
     if (!experience || !substanceData) return;
 
@@ -154,134 +278,92 @@ export default function ExperienceDetails() {
       remaining,
       progress,
     });
-
-    // --- 2. Create Mock Chart Data (replace with real intensity curves) ---
-    // A real implementation would generate intensity curves for each substance and sum them.
-
-    const cDat: Record<string, DataPoint[]> = {};
+    // Set Chart Data
+    let cDataTemp: Record<string, DataPoint[]> = {};
     experience.ingestions.forEach(ing => {
-      const substance = substanceData[ing.substanceName.toLowerCase()];
-      if (!substance?.psychonautwiki?.timing) return;
+      cDataTemp = {...cDataTemp, ...calculateSubstanceGraph(ing)};
+      console.log("cdata:", cDataTemp)
+      setChartData(cDataTemp);
 
-      const timing = substance.psychonautwiki.timing;
-      // Get onset duration (use longer time)
-      const onsetRange = timing.onset?.[ing.administrationRoute.toLowerCase()]?.value?.split('-').map(Number) || [0];
-      const onsetMultiplier = timing.onset?.[ing.administrationRoute.toLowerCase()]?.unit === 'hours' ? 1 : 0.016;
-      const onsetDuration = parseFloat((Math.max(...onsetRange) * onsetMultiplier).toFixed(1));
-
-      // Get total duration (use longer time) 
-      const durationRange = timing.duration?.[ing.administrationRoute.toLowerCase()]?.value?.split('-').map(Number) || [0];
-      const durationMultiplier = (timing.duration?.[ing.administrationRoute.toLowerCase()]?.unit === 'hours' ? 1 : 0.016);
-      const peakDuration = parseFloat(Math.max(...durationRange) * durationMultiplier.toFixed(1));
-
-      // Get aftereffects (use lower range)
-      const afterRange = timing.aftereffects?.[ing.administrationRoute.toLowerCase()]?.value?.split('-').map(Number) || [0];
-      const afterMultiplier = timing.aftereffects?.[ing.administrationRoute.toLowerCase()]?.unit === 'hours' ? 1 : 0.016;
-      const afterDuration = parseFloat((afterRange[0] * afterMultiplier).toFixed(1));
-      console.log(afterDuration + onsetDuration + peakDuration)
-      const times = [onsetDuration, onsetDuration + peakDuration, onsetDuration + peakDuration + afterDuration]
-      console.log(times)
-
-      let intensityMax = 4;
-      // if(new Mass(substance.psychonautwiki.dosage.routes[ing.administrationRoute.toLowerCase()]?.heavy+substance.psychonautwiki.dosage.routes[ing.administrationRoute.toLowerCase()]?.units).base <= ing.dose.base) {intensityMax = 4;}
-      // else if(new Mass(substance.psychonautwiki.dosage.routes[ing.administrationRoute.toLowerCase()]?.strong.min+substance.psychonautwiki.dosage.routes[ing.administrationRoute.toLowerCase()]?.units).base <= ing.dose.base) {intensityMax=3;}
-      // else if(new Mass(substance.psychonautwiki.dosage.routes[ing.administrationRoute.toLowerCase()]?.common.min+substance.psychonautwiki.dosage.routes[ing.administrationRoute.toLowerCase()]?.units).base <= ing.dose.base) {intensityMax=2;}
-      // else if(new Mass(substance.psychonautwiki.dosage.routes[ing.administrationRoute.toLowerCase()]?.light.min+substance.psychonautwiki.dosage.routes[ing.administrationRoute.toLowerCase()]?.units).base <= ing.dose.base) {intensityMax=1;}
-      // else {intensityMax = 0;}
-      cDat[ing.substanceName.toLowerCase()] = [
-        {time: 0, intensity: 0},
-        {
-          time: times[0],
-          intensity: intensityMax
-        },
-        {
-          time: times[1],
-          intensity: intensityMax
-        },
-        {time: times[2], intensity: 0}
-      ];
-    });
-    console.log(cDat)
-    setChartData(cDat);
-
-    // --- 3. Calculate Cumulative Doses ---
-    const doses: Record<string, { totalDose: Mass, unit: string, route: string }> = {};
-    experience.ingestions.forEach(ing => {
-      const name = ing.substanceName;
-      const dose = ing.dose || 0;
-      if (doses[name]) {
-        if (!(doses[name].totalDose instanceof Mass)) {
-          doses[name].totalDose = new Mass("0mg")
+      // --- 3. Calculate Cumulative Doses ---
+      const doses: Record<string, { totalDose: Mass, unit: string, route: string }> = {};
+      experience.ingestions.forEach(ing => {
+        const name = ing.substanceName;
+        const dose = ing.dose || 0;
+        if (doses[name]) {
+          if (!(doses[name].totalDose instanceof Mass)) {
+            doses[name].totalDose = new Mass("0mg")
+          }
+          doses[name].totalDose.add(dose.adjusted + dose.unit);
+        } else {
+          doses[name] = {
+            totalDose: dose,
+            unit: ing.units || 'units',
+            route: ing.administrationRoute || 'Unknown'
+          };
         }
-        doses[name].totalDose.add(dose.adjusted + dose.unit);
-      } else {
-        doses[name] = {
-          totalDose: dose,
-          unit: ing.units || 'units',
-          route: ing.administrationRoute || 'Unknown'
-        };
-      }
-    });
-    setCumulativeDoses(doses);
+      });
+      setCumulativeDoses(doses);
 
-    // --- 4. Calculate Interactions ---
-    const substanceNames = Object.keys(doses).map(s => s.toLowerCase());
-    const allSubstanceInfo = substanceNames.map(name => ({
-      name,
-      tags: [...new Set([
-        ...substanceData[name]?.psychonautwiki?.categories || [],
-        ...substanceData[name]?.tripsit?.categories || []
-      ])]
-    }));
+      // --- 4. Calculate Interactions ---
+      const substanceNames = Object.keys(doses).map(s => s.toLowerCase());
+      const allSubstanceInfo = substanceNames.map(name => ({
+        name,
+        tags: [...new Set([
+          ...substanceData[name]?.psychonautwiki?.categories || [],
+          ...substanceData[name]?.tripsit?.categories || []
+        ])]
+      }));
 
-    const foundInteractions = new Set();
+      const foundInteractions = new Set();
 
-    if (allSubstanceInfo.length > 1) {
-      for (let i = 0; i < allSubstanceInfo.length - 1; i++) {
-        for (let j = i + 1; j < allSubstanceInfo.length; j++) {
-          const [subA, subB] = [allSubstanceInfo[i], allSubstanceInfo[j]];
-          const [dataA, dataB] = [substanceData[subA.name], substanceData[subB.name]];
-          const [nameA, nameB] = [
-            dataA?.tripsit?.name || subA.name,
-            dataB?.tripsit?.name || subB.name
-          ];
-          const [sortedA, sortedB] = [nameA, nameB].sort();
-          const key = sortedA + '-' + sortedB;
-
-          ['dangerous', 'unsafe', 'caution'].forEach(level => {
-            const interactions = [
-              ...dataA?.tripsit?.interactions?.[level] || [],
-              ...dataA?.psychonautwiki?.interactions?.[level] || [],
-              ...dataB?.tripsit?.interactions?.[level] || [],
-              ...dataB?.psychonautwiki?.interactions?.[level] || []
+      if (allSubstanceInfo.length > 1) {
+        for (let i = 0; i < allSubstanceInfo.length - 1; i++) {
+          for (let j = i + 1; j < allSubstanceInfo.length; j++) {
+            const [subA, subB] = [allSubstanceInfo[i], allSubstanceInfo[j]];
+            const [dataA, dataB] = [substanceData[subA.name], substanceData[subB.name]];
+            const [nameA, nameB] = [
+              dataA?.tripsit?.name || subA.name,
+              dataB?.tripsit?.name || subB.name
             ];
+            const [sortedA, sortedB] = [nameA, nameB].sort();
+            const key = sortedA + '-' + sortedB;
 
-            interactions.forEach(int => {
-              if (!int) return;
-              const intName = int.toLowerCase();
-              if ((subA.name === intName || subA.tags.includes(intName)) ||
-                  (subB.name === intName || subB.tags.includes(intName))) {
-                foundInteractions.add(JSON.stringify({
-                  level,
-                  nameA: sortedA,
-                  nameB: sortedB,
-                  key: key + '-' + level,
-                  note: int.note || ""
-                }));
-              }
+            ['dangerous', 'unsafe', 'caution'].forEach(level => {
+              const interactions = [
+                ...dataA?.tripsit?.interactions?.[level] || [],
+                ...dataA?.psychonautwiki?.interactions?.[level] || [],
+                ...dataB?.tripsit?.interactions?.[level] || [],
+                ...dataB?.psychonautwiki?.interactions?.[level] || []
+              ];
+
+              interactions.forEach(int => {
+                if (!int) return;
+                const intName = int.toLowerCase();
+                if ((subA.name === intName || subA.tags.includes(intName)) ||
+                    (subB.name === intName || subB.tags.includes(intName))) {
+                  foundInteractions.add(JSON.stringify({
+                    level,
+                    nameA: sortedA,
+                    nameB: sortedB,
+                    key: key + '-' + level,
+                    note: int.note || ""
+                  }));
+                }
+              });
             });
-          });
+          }
         }
       }
-    }
 
-    setInteractions(Array.from(foundInteractions).map(i => JSON.parse(i)).sort((a, b) => {
-      if (a.level === 'dangerous' && b.level !== 'dangerous') return -1;
-      if (b.level === 'dangerous' && a.level !== 'dangerous') return 1;
-      if (a.level === 'unsafe' && b.level === 'caution') return -1;
-      if (b.level === 'unsafe' && a.level === 'caution') return 1;
-      return 0;
-    }));
+      setInteractions(Array.from(foundInteractions).map(i => JSON.parse(i)).sort((a, b) => {
+        if (a.level === 'dangerous' && b.level !== 'dangerous') return -1;
+        if (b.level === 'dangerous' && a.level !== 'dangerous') return 1;
+        if (a.level === 'unsafe' && b.level === 'caution') return -1;
+        if (b.level === 'unsafe' && a.level === 'caution') return 1;
+        return 0;
+      }));
+    })
   }, [experience, substanceData])
   if (!experience) {
     // ... (existing error view from user upload)
